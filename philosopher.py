@@ -4,7 +4,7 @@ import os
 from telebot import types
 
 # Токен от BotFather (если ты хочешь его спрятать, добавь переменную BOT_TOKEN_PHILOSOPHER на Bothost)
-TOKEN = os.environ.get('BOT_TOKEN_PHILOSOPHER')
+TOKEN = os.environ.get('BOT_TOKEN')
 # Ключ от OpenRouter (добавь переменную OPENROUTER_KEY на Bothost)
 AI_API_KEY = os.environ.get('OPENROUTER_KEY')
 AI_URL = "https://openrouter.ai/api/v1/chat/completions"
