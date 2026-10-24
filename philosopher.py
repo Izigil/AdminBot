@@ -1,11 +1,13 @@
 import telebot
 import requests
-import os
+import time
 from telebot import types
 
-# Берем токен и ключ из переменных окружения на Bothost
+# ВСТАВЬ СВОЙ ТОКЕН ОТ БОТФАЗЕРА В КАВЫЧКИ НИЖЕ
 TOKEN = '8963384031:AAFBkJTaDppZ9B_CxqMH7RR9vt9jLOJQElA'
+# ВСТАВЬ СВОЙ КЛЮЧ ОТ OPENROUTER В КАВЫЧКИ НИЖЕ
 AI_API_KEY = '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'
+
 AI_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 bot = telebot.TeleBot(TOKEN)
@@ -53,7 +55,7 @@ def chat(message):
     messages_for_api = [{"role": "system", "content": system_prompt}] + user_histories[chat_id][-6:]
 
     payload = {
-        "model": "openrouter/free",
+        "model": "openrouter/free", 
         "messages": messages_for_api,
         "stream": False
     }
