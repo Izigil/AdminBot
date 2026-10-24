@@ -1,7 +1,8 @@
+import os
 import telebot
 import time
 
-TOKEN = '8793453185:AAFeIwbg7bAgalGeUSwxZ7B2wuM_8QvTn9o'
+TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 
 BAD_WORDS = ['хуй', 'пизд', 'блять', 'сука', 'пидор', 'мудак', 'ебал']
