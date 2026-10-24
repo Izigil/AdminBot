@@ -3,9 +3,8 @@ import requests
 import os
 from telebot import types
 
-# Токен от BotFather (если ты хочешь его спрятать, добавь переменную BOT_TOKEN_PHILOSOPHER на Bothost)
+# Берем токен и ключ из переменных окружения на Bothost
 TOKEN = '8963384031:AAFBkJTaDppZ9B_CxqMH7RR9vt9jLOJQElA'
-# Ключ от OpenRouter (добавь переменную OPENROUTER_KEY на Bothost)
 AI_API_KEY = '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'
 AI_URL = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -54,11 +53,11 @@ def chat(message):
     messages_for_api = [{"role": "system", "content": system_prompt}] + user_histories[chat_id][-6:]
 
     payload = {
-        "model": "qwen/qwen3-coder:free", # Бесплатная модель
+        "model": "qwen/qwen3-coder:free",
         "messages": messages_for_api,
-        "stream": False,
-        "options": {"temperature": 0.8}
+        "stream": False
     }
+    
     headers = {
         "Authorization": f"Bearer {AI_API_KEY}",
         "Content-Type": "application/json"
@@ -68,7 +67,6 @@ def chat(message):
         response = requests.post(AI_URL, json=payload, headers=headers, timeout=60)
         result = response.json()
         
-        # Проверяем, нет ли ошибки в ответе
         if 'error' in result:
             bot.reply_to(message, f"Блять, API выдало ошибку: {result['error']['message']}", reply_markup=get_main_menu())
             return
