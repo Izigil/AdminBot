@@ -53,7 +53,7 @@ def chat(message):
     messages_for_api = [{"role": "system", "content": system_prompt}] + user_histories[chat_id][-6:]
 
     payload = {
-        "model": "qwen/qwen3-coder:free",
+        "model": "openrouter/free",
         "messages": messages_for_api,
         "stream": False
     }
