@@ -54,7 +54,7 @@ def chat(message):
     messages_for_api = [{"role": "system", "content": system_prompt}] + user_histories[chat_id][-6:]
 
     payload = {
-        "model": "meta-llama/llama-3.1-8b-instruct:free", # Бесплатная модель
+        "model": "qwen/qwen3-coder:free", # Бесплатная модель
         "messages": messages_for_api,
         "stream": False,
         "options": {"temperature": 0.8}
