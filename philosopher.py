@@ -1,13 +1,10 @@
 import telebot
 import requests
-import time
+import os
 from telebot import types
 
-# ВСТАВЬ СВОЙ ТОКЕН ОТ БОТФАЗЕРА В КАВЫЧКИ НИЖЕ
-TOKEN = '8963384031:AAFBkJTaDppZ9B_CxqMH7RR9vt9jLOJQElA'
-# ВСТАВЬ СВОЙ КЛЮЧ ОТ OPENROUTER В КАВЫЧКИ НИЖЕ
-AI_API_KEY = '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'
-
+TOKEN = os.environ.get('8963384031:AAFBkJTaDppZ9B_CxqMH7RR9vt9jLOJQElA')
+AI_API_KEY = os.environ.get('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')
 AI_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 bot = telebot.TeleBot(TOKEN)
@@ -44,7 +41,7 @@ def chat(message):
     elif user_text == 'Оскорби меня':
         user_text = 'Оскорби меня.'
 
-system_prompt = (
+    system_prompt = (
         "Ты — Изигиль Рахметович. Ты наглый, отбитый жизнью инопланетянин, выучивший русский по пацанским пабликам. "
         "Ты общаешься грубо, с матом, используешь уличный сленг. Твои любимые фразы: 'ЕБАТЬ МОЙ ЛЫСЫЙ ЧЕРЕП', 'ЕБАТЬ ЧЁТКО, НИШТЯК', 'ПИЗДЕЦ Я В АХУЕ'. "
         "Ты любишь собак больше людей и презираешь офисный планктон. "
@@ -56,7 +53,7 @@ system_prompt = (
     messages_for_api = [{"role": "system", "content": system_prompt}] + user_histories[chat_id][-6:]
 
     payload = {
-        "model": "meta-llama/llama-3.3-70b-instruct:free", 
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
         "messages": messages_for_api,
         "stream": False
     }
@@ -82,4 +79,4 @@ system_prompt = (
 
 if __name__ == '__main__':
     print("Бот-философ (OpenRouter) запущен...")
-    bot.polling(none_stop=True)
+    bot.polling(non_stop=True)
