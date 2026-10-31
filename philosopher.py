@@ -56,7 +56,7 @@ system_prompt = (
     messages_for_api = [{"role": "system", "content": system_prompt}] + user_histories[chat_id][-6:]
 
     payload = {
-        "model": "openrouter/free", 
+        "model": "meta-llama/llama-3.3-70b-instruct:free", 
         "messages": messages_for_api,
         "stream": False
     }
