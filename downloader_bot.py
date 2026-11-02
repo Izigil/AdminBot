@@ -27,7 +27,7 @@ def download_video(message):
     try:
         ydl_opts = {
             'outtmpl': f'{DOWNLOAD_DIR}/%(title)s.%(ext)s',
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'format': 'best[ext=mp4]/best',
             'noplaylist': True,
             'quiet': True,
         }
