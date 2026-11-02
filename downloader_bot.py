@@ -3,7 +3,7 @@ import yt_dlp
 import os
 
 # ВСТАВЬ СВОЙ ТОКЕН
-TOKEN = '9096084181:AAG7izHTvmU80bmkrt5OYO8Alxgu2n7-Swc'
+TOKEN = os.environ.get('BOT_TOKEN_DOWNLOADER')
 bot = telebot.TeleBot(TOKEN)
 
 # Папка для скачивания (создастся сама)
