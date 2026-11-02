@@ -53,7 +53,7 @@ def chat(message):
     messages_for_api = [{"role": "system", "content": system_prompt}] + user_histories[chat_id][-6:]
 
     payload = {
-        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "model": "openrouter/free",
         "messages": messages_for_api,
         "stream": False
     }
