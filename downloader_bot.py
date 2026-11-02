@@ -2,11 +2,10 @@ import telebot
 import yt_dlp
 import os
 
-# ВСТАВЬ СВОЙ ТОКЕН
+# Берем токен из переменных Bothost
 TOKEN = os.environ.get('BOT_TOKEN_DOWNLOADER')
 bot = telebot.TeleBot(TOKEN)
 
-# Папка для скачивания (создастся сама)
 DOWNLOAD_DIR = 'downloads'
 if not os.path.exists(DOWNLOAD_DIR):
     os.makedirs(DOWNLOAD_DIR)
@@ -19,7 +18,6 @@ def start(message):
 def download_video(message):
     url = message.text
     
-    # Проверяем, похоже ли это на ссылку
     if not url.startswith('http'):
         bot.reply_to(message, "Это не похоже на ссылку, брат. Кидай нормальный URL.")
         return
@@ -27,7 +25,6 @@ def download_video(message):
     msg = bot.reply_to(message, "Качаю, подожди...")
     
     try:
-        # Настройки yt-dlp
         ydl_opts = {
             'outtmpl': f'{DOWNLOAD_DIR}/%(title)s.%(ext)s',
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
@@ -39,16 +36,16 @@ def download_video(message):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
         
-        # Отправляем видео (лимит Телеграма 50 МБ для ботов без Premium)
         with open(filename, 'rb') as video:
             bot.send_video(message.chat.id, video, caption="Держи, братуха.")
         
-        # Удаляем файл после отправки, чтобы не забивать диск
         os.remove(filename)
         bot.delete_message(message.chat.id, msg.message_id)
         
     except Exception as e:
         bot.edit_message_text(f"Ошибка: {e}", message.chat.id, msg.message_id)
 
-print("Бот-качальщик запущен...")
-bot.polling(non_stop=True)
+if __name__ == '__main__':
+    print("Бот-качальщик запущен...")
+    # Вот та самая правильная строка вместо non_stop=True
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
