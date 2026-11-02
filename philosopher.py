@@ -3,8 +3,8 @@ import requests
 import os
 from telebot import types
 
-TOKEN = os.environ.get('8963384031:AAFBkJTaDppZ9B_CxqMH7RR9vt9jLOJQElA')
-AI_API_KEY = os.environ.get('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')
+TOKEN = '8963384031:AAFBkJTaDppZ9B_CxqMH7RR9vt9jLOJQElA'
+AI_API_KEY = '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'
 AI_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 bot = telebot.TeleBot(TOKEN)
