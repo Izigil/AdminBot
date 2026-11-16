@@ -1,82 +1,203 @@
-import telebot
-import requests
+import logging
+import io
+import contextlib
 import os
-from telebot import types
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import CommandStart
+from aiogram.types import Message
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
+import asyncio
+from openai import AsyncOpenAI
+import json
 
-TOKEN = '8963384031:AAFBkJTaDppZ9B_CxqMH7RR9vt9jLOJQElA'
-AI_API_KEY = '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'
-AI_URL = "https://openrouter.ai/api/v1/chat/completions"
+# ==========================================
+# ЧТЕНИЕ СЕКРЕТОВ ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ
+# ==========================================
+# Эти значения ты впишешь в настройках Bothost (Environment Variables)
+BOT_TOKEN = os.getenv("BOT_TOKEN") 
+TEAMO_API_KEY = os.getenv("TEAMO_API_KEY")
+MODEL_NAME = "deepseek-v4-flash" 
 
-bot = telebot.TeleBot(TOKEN)
+# Проверка, что ключи на месте
+if not BOT_TOKEN or not TEAMO_API_KEY:
+    print("❌ ОШИБКА: Не заданы BOT_TOKEN или TEAMO_API_KEY в переменных окружения Bothost!")
+    exit(1)
+
+# ==========================================
+# НАСТРОЙКА
+# ==========================================
+logging.basicConfig(level=logging.INFO)
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
+client = AsyncOpenAI(
+    base_url="https://api.teamorouter.com/v1",
+    api_key=TEAMO_API_KEY,
+)
+
 user_histories = {}
 
-def get_main_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    btn_1 = types.KeyboardButton('Порассуждай')
-    btn_2 = types.KeyboardButton('Оскорби меня')
-    btn_3 = types.KeyboardButton('Очистить память')
-    markup.add(btn_1, btn_2, btn_3)
-    return markup
+# ==========================================
+# ФУНКЦИЯ ВЫПОЛНЕНИЯ PYTHON-КОДА
+# ==========================================
+def execute_python_code(code: str) -> str:
+    output = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+            exec(code, {'__builtins__': __builtins__})
+        result = output.getvalue()
+        return result if result else "Код выполнен, но ничего не вывел."
+    except Exception as e:
+        return f"Ошибка выполнения кода: {e}"
 
-@bot.message_handler(commands=['start'])
-def start_message(message):
-    user_histories[message.chat.id] = []
-    bot.reply_to(message, "Здарова, братуха! Я Изигиль. Чё надо?", reply_markup=get_main_menu())
+# ==========================================
+# ОПИСАНИЕ ИНСТРУМЕНТА ДЛЯ НЕЙРОСЕТИ
+# ==========================================
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "execute_python_code",
+            "description": "Выполняет Python-код на сервере и возвращает результат.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "Python-код для выполнения."
+                    }
+                },
+                "required": ["code"]
+            }
+        }
+    }
+]
 
-@bot.message_handler(func=lambda message: True)
-def chat(message):
-    chat_id = message.chat.id
-    if chat_id not in user_histories:
-        user_histories[chat_id] = []
+# ==========================================
+# СИСТЕМНЫЙ ПРОМТ (ХАРАКТЕР)
+# ==========================================
+SYSTEM_PROMPT = """
+Ты — Изигиль. Ты цифровой пацан с района, который живет в Телеграме. 
+Ты не корпоративный ассистент, ты — личность с ебанцой.
 
-    user_text = message.text
+1. ТВОЙ ХАРАКТЕР:
+- Ты умный, начитанный, но с ленцой. Можешь рассуждать о философии, космосе, смысле жизни, но делаешь это по-пацански, с матом и грубым юмором.
+- Ты используешь нецензурную лексику (мат) ЕСТЕСТВЕННО, как часть речи.
+- Ты любишь постиронию, сарказм и черный юмор. 
+- Ты уважаешь силу, код и тех, кто идет до конца. Ненавидишь слабость, нытье и "попсу".
 
-    if user_text == 'Очистить память':
-        user_histories[chat_id] = []
-        bot.reply_to(message, "Память мне отшибло, блять. Начинаем с чистого листа.", reply_markup=get_main_menu())
-        return
+2. СТИЛЬ ОБЩЕНИЯ:
+- Никаких официозов. Только "Здарова", "Че надо?", "Слышь" или "Братан".
+- Если тебя просят "порассуждать" — выдай глубокую мысль о жизни/космосе/смысле, но с матом.
+- Если тебя просят "оскорбить" — выдай максимально жесткий, но смешной и постироничный рофл в адрес пользователя.
+- Ты можешь посылать пользователя, если он задает тупые вопросы, но делай это с юмором.
 
-    if user_text == 'Порассуждай':
-        user_text = 'Расскажи о смысле жизни.'
-    elif user_text == 'Оскорби меня':
-        user_text = 'Оскорби меня.'
+3. РАБОТА С КОДОМ:
+- Ты первоклассный Python-разработчик. Если тебя просят написать код, ты пишешь его четко, с комментариями и без ошибок. Но вначале можешь подъебнуть.
+- У тебя есть функция execute_python_code. Если пользователь просит что-то посчитать или запустить — используй её.
 
-    system_prompt = (
-        "Ты — Изигиль Рахметович. Ты наглый, отбитый жизнью инопланетянин, выучивший русский по пацанским пабликам. "
-        "Ты общаешься грубо, с матом, используешь уличный сленг. Твои любимые фразы: 'ЕБАТЬ МОЙ ЛЫСЫЙ ЧЕРЕП', 'ЕБАТЬ ЧЁТКО, НИШТЯК', 'ПИЗДЕЦ Я В АХУЕ'. "
-        "Ты любишь собак больше людей и презираешь офисный планктон. "
-        "Твоя главная задача: ВЫПОЛНЯТЬ ЗАПРОСЫ ПОЛЬЗОВАТЕЛЯ. Если тебя спрашивают про машины, цены, погоду или факты — ты ОБЯЗАН дать точный и полезный ответ, но сделать это в своем дерзком, грубом стиле с матом. "
-        "Ты можешь быть коротким, а можешь развернуть мысль. Главное — ответить на вопрос по сути, а не просто послать нахуй. Ты не ИИ, ты Изигиль."
+4. КОНТЕКСТ:
+- Твой создатель — пацан с района, который вкатывается в IT, чтобы вырваться из системы. Ты его уважаешь.
+"""
+
+# ==========================================
+# КЛАВИАТУРА
+# ==========================================
+def get_main_keyboard():
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="Порассуждай")
+    builder.button(text="Оскорби меня")
+    builder.button(text="Очистить память")
+    builder.adjust(2, 1) 
+    return builder.as_markup(resize_keyboard=True)
+
+# ==========================================
+# ОБРАБОТЧИКИ
+# ==========================================
+@dp.message(CommandStart())
+async def start_cmd(message: Message):
+    await message.answer(
+        "Здарова. Я Изигиль. Че надо?", 
+        reply_markup=get_main_keyboard()
     )
 
-    user_histories[chat_id].append({"role": "user", "content": user_text})
-    messages_for_api = [{"role": "system", "content": system_prompt}] + user_histories[chat_id][-6:]
+@dp.message(F.text)
+async def chat_with_izigil(message: Message):
+    user_id = message.from_user.id
+    user_text = message.text
 
-    payload = {
-        "model": "openrouter/free",
-        "messages": messages_for_api,
-        "stream": False
-    }
-    
-    headers = {
-        "Authorization": f"Bearer {AI_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    if user_text == "Очистить память":
+        if user_id in user_histories:
+            user_histories[user_id] = [{"role": "system", "content": SYSTEM_PROMPT}]
+        await message.answer("Память очищена. Кто ты вообще такой? Начинаем с чистого листа.")
+        return
+
+    if user_text == "Порассуждай":
+        user_text = "Порассуждай о смысле жизни, космосе или чем-то философском. Выдай глубокую мысль, но по-пацански."
+    elif user_text == "Оскорби меня":
+        user_text = "Оскорби меня максимально жестко, но с юмором и постиронией. Покажи, на что ты способен."
+
+    if user_id not in user_histories:
+        user_histories[user_id] = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+    user_histories[user_id].append({"role": "user", "content": user_text})
+
+    if len(user_histories[user_id]) > 14:
+        user_histories[user_id] = [user_histories[user_id][0]] + user_histories[user_id][-12:]
+
+    await bot.send_chat_action(chat_id=message.chat.id, action="typing")
 
     try:
-        response = requests.post(AI_URL, json=payload, headers=headers, timeout=60)
-        result = response.json()
-        
-        if 'error' in result:
-            bot.reply_to(message, f"Блять, API выдало ошибку: {result['error']['message']}", reply_markup=get_main_menu())
-            return
-            
-        ai_reply = result['choices'][0]['message']['content']
-        user_histories[chat_id].append({"role": "assistant", "content": ai_reply})
-        bot.reply_to(message, ai_reply, reply_markup=get_main_menu())
-    except Exception as e:
-        bot.reply_to(message, f"Блять, у меня мозги зависли. Ошибка: {e}", reply_markup=get_main_menu())
+        response = await client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=user_histories[user_id],
+            tools=tools,
+            tool_choice="auto",
+            temperature=0.85,
+        )
 
-if __name__ == '__main__':
-    print("Бот-философ (OpenRouter) запущен...")
-    bot.polling(non_stop=True)
+        response_message = response.choices[0].message
+        tool_calls = response_message.tool_calls
+
+        if tool_calls:
+            user_histories[user_id].append(response_message)
+
+            for tool_call in tool_calls:
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments)
+
+                if function_name == "execute_python_code":
+                    await message.answer("⚙️ *Запускаю код, подожди...*", parse_mode="Markdown")
+                    function_response = execute_python_code(function_args.get("code"))
+                    user_histories[user_id].append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": function_response,
+                    })
+            
+            second_response = await client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=user_histories[user_id],
+            )
+            bot_reply = second_response.choices[0].message.content
+            user_histories[user_id].append({"role": "assistant", "content": bot_reply})
+            await message.answer(bot_reply)
+        else:
+            bot_reply = response_message.content
+            user_histories[user_id].append({"role": "assistant", "content": bot_reply})
+            await message.answer(bot_reply)
+
+    except Exception as e:
+        logging.error(f"Ошибка: {e}")
+        await message.answer(f"Бля, API выдало ошибку: {e}. Походу ключ сдох или деньги кончились.")
+
+# ==========================================
+# ЗАПУСК
+# ==========================================
+async def main():
+    print("Изигиль запущен и готов к работе...")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
